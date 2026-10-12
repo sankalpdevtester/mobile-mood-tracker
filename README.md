@@ -1,95 +1,50 @@
-# Mood Tracker Mobile App
-[![Language](https://img.shields.io/badge/Language-JavaScript-yellow)](https://www.javascript.com/)
-[![License](https://img.shields.io/badge/License-MIT-blue)](https://opensource.org/licenses/MIT)
+# Mindnote Mood Tracker
 
-## What it does
-The Mood Tracker Mobile App is a simple and intuitive application designed to help users monitor and track their daily mood and emotions. By providing a user-friendly interface, users can easily log their emotions and receive valuable insights into their mental well-being. This app aims to promote self-awareness and emotional intelligence, allowing users to make positive changes in their lives.
+A small Expo app for recording daily moods, noting related feelings, reviewing past check-ins, and spotting simple patterns over time. Entries and reminder settings are stored on the device; the app has no account, analytics, or mood-data API.
 
-## Features
-* Mood tracking: Users can track their daily mood and emotions
-* Emotion logging: Users can log specific emotions and events throughout the day
-* Daily reminders: Users receive reminders to log their mood and emotions
-* Mood statistics: Users can view statistics on their mood and emotions over time
-* Customizable mood categories: Users can customize the mood categories to suit their needs
+## What it includes
 
-## Requirements
-* Node.js: 16.14.2
-* npm: 8.5.5
-* Expo: 44.0.0
-* React Native: 0.68.2
+- Five mood levels with optional emotion tags and a 500-character note.
+- A local journal with date, mood, selected feelings, and deletion controls.
+- Insights for the most frequently logged mood and feeling, plus a mood breakdown and recent check-ins.
+- Optional repeating local notifications on Android and iOS.
+- A responsive dark interface with accessible labels and selection states.
 
-## Installation
-To install the required dependencies, run the following command:
-```bash
+## Run it
+
+This repository uses Expo SDK 46 with React Native 0.69.5 and React 18. Install Node.js and npm, then run:
+
+```sh
 npm install
+npm start
 ```
 
-## Usage
-To start the application, run the following command:
-```bash
-npx expo start
-```
-This will start the development server, and you can access the app on your mobile device or emulator. For example, if you want to start the app on an Android device, you can use the following command:
-```bash
-npx expo start --android
-```
-Expected output:
-```
-Starting project at /path/to/project
- Expo Development Server started
+Use the Expo CLI menu to open an Android emulator, iOS simulator, or Expo Go on a device. Local notification scheduling requires a native Android or iOS runtime; it is not available on web.
+
+Useful scripts:
+
+```sh
+npm run android
+npm run ios
+npm run web
 ```
 
-## Environment Variables
-| Variable | Description |
-| --- | --- |
-| `MOOD_TRACKER_API_KEY` | API key for mood tracking services |
-| `EXPO_ANDROID_PACKAGE` | Package name for Android app |
-| `EXPO_IOS_BUNDLE_IDENTIFIER` | Bundle identifier for iOS app |
+## Project layout
 
-## Project Structure
-```markdown
-mood-tracker-mobile-app/
-├── app.json
-├── package.json
-├── README.md
-├── node_modules/
-├── src/
-│   ├── components/
-│   │   ├── MoodTracker.js
-│   │   ├── EmotionLogger.js
-│   │   └── ...
-│   ├── screens/
-│   │   ├── HomeScreen.js
-│   │   ├── MoodScreen.js
-│   │   └── ...
-│   ├── services/
-│   │   ├── MoodTrackerService.js
-│   │   ├── EmotionLoggerService.js
-│   │   └── ...
-│   ├── utils/
-│   │   ├── constants.js
-│   │   ├── helpers.js
-│   │   └── ...
-│   ├── App.js
-│   └── index.js
-└── tests/
-    ├── components/
-    │   ├── MoodTracker.test.js
-    │   ├── EmotionLogger.test.js
-    │   └── ...
-    ├── screens/
-    │   ├── HomeScreen.test.js
-    │   ├── MoodScreen.test.js
-    │   └── ...
-    ├── services/
-    │   ├── MoodTrackerService.test.js
-    │   ├── EmotionLoggerService.test.js
-    │   └── ...
-    └── ...
+```text
+App.js                         Main app shell and four-section interface
+app.json                      Expo app metadata
+src/components/MoodLogList.js Journal history list
+src/hooks/useMoodLog.js       Mood entry loading and updates
+src/hooks/useMoodReminder.js  Reminder state and actions
+src/models/MoodEntry.js       Entry shape and validation
+src/utils/storage.js          Local entry and preference storage
+src/utils/moodStatisticsHelper.js  Mood and emotion summaries
+src/utils/moodReminders.js    Local notification scheduling
 ```
 
-## Contributing
-Contributions are welcome and appreciated. To contribute, please fork the repository, make your changes, and submit a pull request. Please ensure that your changes are consistent with the existing code style and conventions.
+The app stores journal data in AsyncStorage. That storage is local but not encrypted, so avoid recording information that needs encrypted storage. No environment variables or external service credentials are required.
 
 ## License
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+MIT

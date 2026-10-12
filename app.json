@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "Mindnote Mood Tracker",
+    "slug": "mobile-mood-tracker",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0c1220"
+    },
+    "assetBundlePatterns": ["**/*"]
+  }
+}

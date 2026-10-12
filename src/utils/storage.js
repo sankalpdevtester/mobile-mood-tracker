@@ -1,43 +1,64 @@
-import { SecureStore } from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const STORAGE_KEY = 'moodTrackerData';
+const ENTRIES_KEY = 'mindnote:mood-entries:v1';
+const SETTINGS_KEY = 'mindnote:settings:v1';
 
-const storeMoodData = async (data) => {
+async function readObject(key, fallback) {
+  const raw = await AsyncStorage.getItem(key);
+  if (!raw) return fallback;
   try {
-    await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(data));
+    return JSON.parse(raw);
   } catch (error) {
-    console.error('Error storing mood data:', error);
+    throw new Error(`Saved app data is unreadable (${key}).`);
   }
-};
+}
 
-const getMoodData = async () => {
-  try {
-    const storedData = await SecureStore.getItemAsync(STORAGE_KEY);
-    return storedData ? JSON.parse(storedData) : [];
-  } catch (error) {
-    console.error('Error retrieving mood data:', error);
-    return [];
-  }
-};
+export async function getMoodData() {
+  const entries = await readObject(ENTRIES_KEY, []);
+  return Array.isArray(entries) ? entries.filter((entry) => entry && entry.id && entry.date && entry.mood) : [];
+}
 
-const updateMoodData = async (newData) => {
-  try {
-    const existingData = await getMoodData();
-    const updatedData = [...existingData, newData];
-    await storeMoodData(updatedData);
-  } catch (error) {
-    console.error('Error updating mood data:', error);
-  }
-};
+export async function storeMoodData(entries) {
+  if (!Array.isArray(entries)) throw new TypeError('Mood entries must be an array.');
+  await AsyncStorage.setItem(ENTRIES_KEY, JSON.stringify(entries));
+}
 
-const deleteMoodData = async (id) => {
-  try {
-    const existingData = await getMoodData();
-    const filteredData = existingData.filter((item) => item.id !== id);
-    await storeMoodData(filteredData);
-  } catch (error) {
-    console.error('Error deleting mood data:', error);
-  }
-};
+export async function addMoodEntry(entry) {
+  if (!entry || !entry.id || !entry.date || !entry.mood) throw new TypeError('A mood, date, and id are required.');
+  const entries = await getMoodData();
+  const next = [entry, ...entries.filter((item) => item.id !== entry.id)]
+    .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
+  await storeMoodData(next);
+  return next;
+}
 
-export { storeMoodData, getMoodData, updateMoodData, deleteMoodData };
+export async function updateMoodData(entry) {
+  return addMoodEntry(entry);
+}
+
+export async function deleteMoodData(id) {
+  const next = (await getMoodData()).filter((entry) => entry.id !== id);
+  await storeMoodData(next);
+  return next;
+}
+
+export async function getSettings() {
+  const settings = await readObject(SETTINGS_KEY, {});
+  return settings && typeof settings === 'object' && !Array.isArray(settings) ? settings : {};
+}
+
+export async function setSetting(key, value) {
+  const settings = await getSettings();
+  settings[key] = value;
+  await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+}
+
+export async function removeSetting(key) {
+  const settings = await getSettings();
+  delete settings[key];
+  await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+}
+
+export async function clearMoodData() {
+  await AsyncStorage.removeItem(ENTRIES_KEY);
+}

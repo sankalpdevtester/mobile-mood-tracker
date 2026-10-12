@@ -1,108 +1,49 @@
-/**
- * Mood Reminders Utility Module
- * 
- * This module provides functionality for scheduling and managing mood reminders.
- * It integrates with the existing mood tracking features to send notifications
- * to users to log their mood at regular intervals.
- */
+import { Platform } from 'react-native';
+import * as Notifications from 'expo-notifications';
+import { getSettings, removeSetting, setSetting } from './storage';
 
-import { Notifications } from 'expo';
-import { AsyncStorage } from 'react-native';
-import { MoodEntry } from '../models/MoodEntry';
-import { storage } from './storage';
-import { moodTrackerHelper } from './moodTrackerHelper';
+const REMINDER_KEY = 'dailyReminder';
 
-const REMINDER_KEY = 'mood_reminder';
-const DEFAULT_REMINDER_INTERVAL = 24 * 60 * 60 * 1000; // 1 day
+function parseTime(value) {
+  const match = /^(\d{2}):(\d{2})$/.exec(value || '');
+  if (!match) throw new Error('Enter a time in 24-hour format, such as 20:00.');
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour > 23 || minute > 59) throw new Error('Enter a valid time between 00:00 and 23:59.');
+  return { hour, minute };
+}
 
-/**
- * Schedule a mood reminder notification
- * 
- * @param {number} interval - The interval at which to send reminders (in milliseconds)
- */
-async function scheduleReminder(interval = DEFAULT_REMINDER_INTERVAL) {
-  const reminder = await getReminder();
-  if (reminder) {
-    await cancelReminder();
-  }
+export async function getDailyReminder() {
+  const settings = await getSettings();
+  return settings[REMINDER_KEY] || null;
+}
 
-  const notificationId = await Notifications.scheduleNotificationAsync({
+export async function scheduleDailyReminder(time) {
+  if (Platform.OS === 'web') throw new Error('Daily notifications are supported on Android and iOS devices.');
+  const { hour, minute } = parseTime(time);
+  const permission = await Notifications.getPermissionsAsync();
+  const requested = permission.status === 'granted' ? permission : await Notifications.requestPermissionsAsync();
+  if (requested.status !== 'granted') throw new Error('Allow notifications in your device settings to schedule a reminder.');
+
+  const current = await getDailyReminder();
+  if (current?.id) await Notifications.cancelScheduledNotificationAsync(current.id);
+  const id = await Notifications.scheduleNotificationAsync({
     content: {
-      title: 'Log Your Mood',
-      body: 'Take a moment to log your current mood',
+      title: 'Take a moment for yourself',
+      body: 'A quick check-in can help you notice how your day is going.',
+      sound: false,
     },
-    trigger: {
-      seconds: interval / 1000,
-      repeats: true,
-    },
+    trigger: { hour, minute, repeats: true },
   });
-
-  await setReminder(notificationId);
+  const reminder = { id, time };
+  await setSetting(REMINDER_KEY, reminder);
+  return reminder;
 }
 
-/**
- * Cancel the currently scheduled mood reminder
- */
-async function cancelReminder() {
-  const reminder = await getReminder();
-  if (reminder) {
-    await Notifications.cancelScheduledNotificationAsync(reminder);
-    await removeReminder();
-  }
+export async function cancelDailyReminder() {
+  const current = await getDailyReminder();
+  if (current?.id) await Notifications.cancelScheduledNotificationAsync(current.id);
+  await removeSetting(REMINDER_KEY);
 }
 
-/**
- * Get the currently scheduled mood reminder
- * 
- * @returns {string|null} The notification ID of the scheduled reminder, or null if none is scheduled
- */
-async function getReminder() {
-  const reminder = await storage.get(REMINDER_KEY);
-  return reminder ? JSON.parse(reminder) : null;
-}
-
-/**
- * Set the currently scheduled mood reminder
- * 
- * @param {string} notificationId - The notification ID of the scheduled reminder
- */
-async function setReminder(notificationId) {
-  await storage.set(REMINDER_KEY, JSON.stringify(notificationId));
-}
-
-/**
- * Remove the currently scheduled mood reminder
- */
-async function removeReminder() {
-  await storage.remove(REMINDER_KEY);
-}
-
-/**
- * Handle a mood reminder notification
- * 
- * @param {object} notification - The notification object
- */
-async function handleReminderNotification(notification) {
-  const moodEntry = new MoodEntry();
-  await moodTrackerHelper.logMood(moodEntry);
-}
-
-/**
- * Initialize the mood reminders feature
- */
-async function initReminders() {
-  const reminder = await getReminder();
-  if (!reminder) {
-    await scheduleReminder();
-  }
-}
-
-export {
-  scheduleReminder,
-  cancelReminder,
-  getReminder,
-  setReminder,
-  removeReminder,
-  handleReminderNotification,
-  initReminders,
-};
+export { parseTime };

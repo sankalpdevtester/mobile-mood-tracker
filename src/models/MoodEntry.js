@@ -1,27 +1,27 @@
-class MoodEntry {
-  constructor(id, date, mood, emotions, notes) {
-    this.id = id;
+export const MOOD_VALUES = ['great', 'good', 'okay', 'low', 'rough'];
+
+export default class MoodEntry {
+  constructor(id, date, mood, emotions = [], notes = '', createdAt = new Date().toISOString()) {
+    this.id = String(id || Date.now());
     this.date = date;
     this.mood = mood;
-    this.emotions = emotions;
-    this.notes = notes;
+    this.emotions = Array.isArray(emotions) ? emotions : [];
+    this.notes = typeof notes === 'string' ? notes : '';
+    this.createdAt = createdAt;
   }
 
   static validate(data) {
-    if (!data.date || !data.mood) {
-      throw new Error('Date and mood are required');
-    }
-    if (data.emotions && !Array.isArray(data.emotions)) {
-      throw new Error('Emotions must be an array');
-    }
-    if (data.notes && typeof data.notes !== 'string') {
-      throw new Error('Notes must be a string');
-    }
+    if (!data || typeof data !== 'object') throw new TypeError('A mood entry is required.');
+    if (!data.date || !/^\d{4}-\d{2}-\d{2}$/.test(data.date)) throw new Error('Choose a valid check-in date.');
+    if (!MOOD_VALUES.includes(data.mood)) throw new Error('Choose a mood from the available options.');
+    if (data.emotions !== undefined && !Array.isArray(data.emotions)) throw new Error('Feelings must be a list.');
+    if (data.notes !== undefined && typeof data.notes !== 'string') throw new Error('Notes must be text.');
+    return true;
   }
 
   static fromJSON(data) {
     MoodEntry.validate(data);
-    return new MoodEntry(data.id, data.date, data.mood, data.emotions, data.notes);
+    return new MoodEntry(data.id, data.date, data.mood, data.emotions, data.notes, data.createdAt);
   }
 
   toJSON() {
@@ -31,8 +31,7 @@ class MoodEntry {
       mood: this.mood,
       emotions: this.emotions,
       notes: this.notes,
+      createdAt: this.createdAt,
     };
   }
 }
-
-export default MoodEntry;

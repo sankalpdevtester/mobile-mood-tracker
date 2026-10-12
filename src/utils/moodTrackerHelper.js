@@ -1,104 +1,44 @@
-/**
- * Mood Tracker Helper Utility
- * 
- * This utility provides functions for calculating mood statistics and trends.
- * It integrates with the existing App.js file and can be used to enhance the user experience.
- */
+import MoodEntry, { MOOD_VALUES } from '../models/MoodEntry';
+import { getMoodData, addMoodEntry } from './storage';
 
-// Import required modules
-import { AsyncStorage } from 'react-native';
+const SCORE = { great: 5, good: 4, okay: 3, low: 2, rough: 1 };
 
-// Define constants for mood types
-const MOOD_TYPES = {
-  HAPPY: 'happy',
-  SAD: 'sad',
-  NEUTRAL: 'neutral',
-  ANGRY: 'angry',
-  FEARFUL: 'fearful'
+export const MoodTrackerHelper = {
+  getMoodCategories: async () => MOOD_VALUES.slice(),
+  getMoodEntries: getMoodData,
+  logMood: async (entry) => {
+    const moodEntry = entry instanceof MoodEntry
+      ? entry
+      : new MoodEntry(entry.id || Date.now(), entry.date || new Date().toISOString().slice(0, 10), entry.mood, entry.emotions, entry.notes, entry.createdAt);
+    MoodEntry.validate(moodEntry);
+    return addMoodEntry(moodEntry.toJSON());
+  },
+  calculateAverageMood: async () => {
+    const entries = await getMoodData();
+    const values = entries.map((entry) => SCORE[entry.mood]).filter(Number.isFinite);
+    return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+  },
+  calculateMostCommonMood: async () => {
+    const entries = await getMoodData();
+    const counts = entries.reduce((result, entry) => {
+      result[entry.mood] = (result[entry.mood] || 0) + 1;
+      return result;
+    }, {});
+    return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+  },
 };
 
-// Define a function to calculate the average mood
-async function calculateAverageMood() {
-  try {
-    // Get all mood entries from storage
-    const moodEntries = await AsyncStorage.getItem('moodEntries');
-    const parsedMoodEntries = JSON.parse(moodEntries);
-
-    // Calculate the sum of all mood ratings
-    let sum = 0;
-    parsedMoodEntries.forEach(entry => {
-      sum += entry.rating;
-    });
-
-    // Calculate the average mood rating
-    const averageMood = sum / parsedMoodEntries.length;
-
-    return averageMood;
-  } catch (error) {
-    console.error('Error calculating average mood:', error);
-    return null;
-  }
+export async function calculateAverageMood() { return MoodTrackerHelper.calculateAverageMood(); }
+export async function calculateMostCommonMood() { return MoodTrackerHelper.calculateMostCommonMood(); }
+export async function calculateMoodTrend() {
+  const entries = (await getMoodData()).slice(0, 3).reverse();
+  if (entries.length < 3) return 'not-enough-data';
+  const [first, second, third] = entries.map((entry) => SCORE[entry.mood]);
+  if (first < second && second < third) return 'improving';
+  if (first > second && second > third) return 'declining';
+  return 'steady';
 }
 
-// Define a function to calculate the most common mood
-async function calculateMostCommonMood() {
-  try {
-    // Get all mood entries from storage
-    const moodEntries = await AsyncStorage.getItem('moodEntries');
-    const parsedMoodEntries = JSON.parse(moodEntries);
-
-    // Create a dictionary to store the count of each mood type
-    const moodCounts = {};
-    parsedMoodEntries.forEach(entry => {
-      if (moodCounts[entry.type]) {
-        moodCounts[entry.type]++;
-      } else {
-        moodCounts[entry.type] = 1;
-      }
-    });
-
-    // Find the mood type with the highest count
-    let maxCount = 0;
-    let mostCommonMood = null;
-    Object.keys(moodCounts).forEach(moodType => {
-      if (moodCounts[moodType] > maxCount) {
-        maxCount = moodCounts[moodType];
-        mostCommonMood = moodType;
-      }
-    });
-
-    return mostCommonMood;
-  } catch (error) {
-    console.error('Error calculating most common mood:', error);
-    return null;
-  }
-}
-
-// Define a function to calculate the mood trend
-async function calculateMoodTrend() {
-  try {
-    // Get all mood entries from storage
-    const moodEntries = await AsyncStorage.getItem('moodEntries');
-    const parsedMoodEntries = JSON.parse(moodEntries);
-
-    // Sort the mood entries by date
-    parsedMoodEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-    // Calculate the trend by comparing the last 3 mood entries
-    const lastThreeEntries = parsedMoodEntries.slice(-3);
-    const trend = lastThreeEntries[0].rating < lastThreeEntries[1].rating && lastThreeEntries[1].rating < lastThreeEntries[2].rating ? 'improving' : lastThreeEntries[0].rating > lastThreeEntries[1].rating && lastThreeEntries[1].rating > lastThreeEntries[2].rating ? 'declining' : 'stable';
-
-    return trend;
-  } catch (error) {
-    console.error('Error calculating mood trend:', error);
-    return null;
-  }
-}
-
-// Export the helper functions
-export {
-  calculateAverageMood,
-  calculateMostCommonMood,
-  calculateMoodTrend,
-  MOOD_TYPES
-};
+export const MOOD_TYPES = Object.freeze({
+  GREAT: 'great', GOOD: 'good', OKAY: 'okay', LOW: 'low', ROUGH: 'rough',
+});

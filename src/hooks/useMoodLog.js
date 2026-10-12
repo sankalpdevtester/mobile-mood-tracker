@@ -1,45 +1,42 @@
-import { useState, useEffect } from 'react';
-import { getMoodData, updateMoodData, deleteMoodData } from '../utils/storage';
+import { useCallback, useEffect, useState } from 'react';
+import { getMoodData, addMoodEntry, deleteMoodData } from '../utils/storage';
 
-const useMoodLog = () => {
+export default function useMoodLog() {
   const [moodEntries, setMoodEntries] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  useEffect(() => {
-    const fetchMoodData = async () => {
-      setLoading(true);
-      try {
-        const data = await getMoodData();
-        setMoodEntries(data);
-      } catch (error) {
-        setError(error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchMoodData();
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      setMoodEntries(await getMoodData());
+      setError('');
+    } catch (loadError) {
+      setError(loadError.message || 'Could not load your saved check-ins.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const handleLogMood = async (newMoodEntry) => {
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const saveMoodEntry = useCallback(async (entry) => {
+    const next = await addMoodEntry(entry);
+    setMoodEntries(next);
+    setError('');
+  }, []);
+
+  const deleteMoodEntry = useCallback(async (id) => {
     try {
-      await updateMoodData(newMoodEntry);
-      setMoodEntries([...moodEntries, newMoodEntry]);
-    } catch (error) {
-      setError(error);
+      const next = await deleteMoodData(id);
+      setMoodEntries(next);
+      setError('');
+      return true;
+    } catch (deleteError) {
+      setError(deleteError.message || 'Could not delete this check-in.');
+      return false;
     }
-  };
+  }, []);
 
-  const handleDeleteMoodEntry = async (id) => {
-    try {
-      await deleteMoodData(id);
-      setMoodEntries(moodEntries.filter((entry) => entry.id !== id));
-    } catch (error) {
-      setError(error);
-    }
-  };
-
-  return { moodEntries, loading, error, handleLogMood, handleDeleteMoodEntry };
-};
-
-export default useMoodLog;
+  return { moodEntries, loading, error, saveMoodEntry, deleteMoodEntry, refresh };
+}

@@ -1,56 +1,45 @@
-import { useState, useEffect } from 'react';
-import { Notifications } from 'expo';
-import * as Permissions from 'expo-permissions';
-import { storage } from '../utils/storage';
-import { MoodEntry } from '../models/MoodEntry';
+import { useEffect, useState } from 'react';
+import { getDailyReminder, scheduleDailyReminder, cancelDailyReminder } from '../utils/moodReminders';
 
-const useMoodReminder = () => {
-  const [reminderTime, setReminderTime] = useState(null);
-  const [hasPermission, setHasPermission] = useState(false);
+export default function useMoodReminder() {
+  const [reminderTime, setReminderTime] = useState('20:00');
+  const [scheduled, setScheduled] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const getReminderTime = async () => {
-      const storedReminderTime = await storage.get('reminderTime');
-      setReminderTime(storedReminderTime);
-    };
-    getReminderTime();
+    let mounted = true;
+    getDailyReminder()
+      .then((reminder) => {
+        if (!mounted || !reminder) return;
+        setReminderTime(reminder.time || '20:00');
+        setScheduled(true);
+      })
+      .catch(() => {})
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
   }, []);
 
-  useEffect(() => {
-    const getPermission = async () => {
-      const { status } = await Permissions.askAsync(Permissions.NOTIFICATIONS);
-      setHasPermission(status === 'granted');
-    };
-    getPermission();
-  }, []);
-
-  const scheduleReminder = async (time) => {
-    if (hasPermission) {
-      const notificationId = await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'Mood Tracker Reminder',
-          body: 'Log your mood for today!',
-        },
-        trigger: {
-          hour: time.getHours(),
-          minute: time.getMinutes(),
-          repeats: true,
-        },
-      });
-      await storage.set('reminderTime', time);
-      setReminderTime(time);
+  const schedule = async (time) => {
+    setLoading(true);
+    try {
+      const reminder = await scheduleDailyReminder(time);
+      setReminderTime(reminder.time);
+      setScheduled(true);
+      return reminder;
+    } finally {
+      setLoading(false);
     }
   };
 
-  const cancelReminder = async () => {
-    if (hasPermission) {
-      await Notifications.cancelAllScheduledNotificationsAsync();
-      await storage.remove('reminderTime');
-      setReminderTime(null);
+  const cancel = async () => {
+    setLoading(true);
+    try {
+      await cancelDailyReminder();
+      setScheduled(false);
+    } finally {
+      setLoading(false);
     }
   };
 
-  return { reminderTime, scheduleReminder, cancelReminder };
-};
-
-export default useMoodReminder;
+  return { reminderTime, scheduled, loading, schedule, cancel };
+}
